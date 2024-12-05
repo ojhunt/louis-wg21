@@ -475,12 +475,14 @@ example<span></span></a></li>
 </ul></li>
 <li><a href="#proposed-wording" id="toc-proposed-wording"><span class="toc-section-number">6</span> Proposed wording<span></span></a>
 <ul>
-<li><a href="#basic.stc.dynamic.allocation" id="toc-basic.stc.dynamic.allocation"><span class="toc-section-number">6.1</span>
+<li><a href="#cpp.predefined" id="toc-cpp.predefined"><span class="toc-section-number">6.1</span>
+cpp.predefined<span></span></a></li>
+<li><a href="#basic.stc.dynamic.allocation" id="toc-basic.stc.dynamic.allocation"><span class="toc-section-number">6.2</span>
 basic.stc.dynamic.allocation<span></span></a></li>
-<li><a href="#basic.stc.dynamic.deallocation" id="toc-basic.stc.dynamic.deallocation"><span class="toc-section-number">6.2</span>
+<li><a href="#basic.stc.dynamic.deallocation" id="toc-basic.stc.dynamic.deallocation"><span class="toc-section-number">6.3</span>
 basic.stc.dynamic.deallocation<span></span></a></li>
-<li><a href="#expr.new" id="toc-expr.new"><span class="toc-section-number">6.3</span> expr.new<span></span></a></li>
-<li><a href="#expr.delete" id="toc-expr.delete"><span class="toc-section-number">6.4</span> expr.delete<span></span></a></li>
+<li><a href="#expr.new" id="toc-expr.new"><span class="toc-section-number">6.4</span> expr.new<span></span></a></li>
+<li><a href="#expr.delete" id="toc-expr.delete"><span class="toc-section-number">6.5</span> expr.delete<span></span></a></li>
 </ul></li>
 <li><a href="#dcl.fct.def.coroutine" id="toc-dcl.fct.def.coroutine"><span class="toc-section-number">7</span>
 dcl.fct.def.coroutine<span></span></a></li>
@@ -922,7 +924,12 @@ e.g.</p>
 <span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a><span class="co">// calls the above operator new&lt;int, 5&gt;(std::type_identity&lt;MyArrayType&lt;int, 5&gt;&gt;, ...)</span></span>
 <span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> A <span class="op">=</span> <span class="kw">new</span> MyArrayType<span class="op">&lt;</span><span class="dt">int</span>, <span class="dv">5</span><span class="op">&gt;</span>;</span></code></pre></div>
 <h1 data-number="6" id="proposed-wording"><span class="header-section-number">6</span> Proposed wording<a href="#proposed-wording" class="self-link"></a></h1>
-<h2 data-number="6.1" id="basic.stc.dynamic.allocation"><span class="header-section-number">6.1</span> basic.stc.dynamic.allocation<a href="#basic.stc.dynamic.allocation" class="self-link"></a></h2>
+<h2 data-number="6.1" id="cpp.predefined"><span class="header-section-number">6.1</span> cpp.predefined<a href="#cpp.predefined" class="self-link"></a></h2>
+<p>Update <span><a href="https://wg21.link/tab:cpp.predefined.ft">[tab:cpp.predefined.ft]</a></span>
+to include a feature detection macro
+<code class="sourceCode default">__cpp_type_aware_allocators</code> with
+a release appropriate value.</p>
+<h2 data-number="6.2" id="basic.stc.dynamic.allocation"><span class="header-section-number">6.2</span> basic.stc.dynamic.allocation<a href="#basic.stc.dynamic.allocation" class="self-link"></a></h2>
 <p>Updates for <span><a href="https://wg21.link/basic.stc.dynamic.allocation">[basic.stc.dynamic.allocation]</a></span></p>
 <p><span class="ednote" style="color: #0000ff">[ Editor&#39;s note: The
 wording changes here are intended to provide for the existence of a
@@ -971,7 +978,7 @@ template argument to
 <span><code class="sourceCode default">std::type_identity</code></span></ins></span>).
 Allocation function templates shall have two or more parameters.</p>
 </blockquote>
-<h2 data-number="6.2" id="basic.stc.dynamic.deallocation"><span class="header-section-number">6.2</span>
+<h2 data-number="6.3" id="basic.stc.dynamic.deallocation"><span class="header-section-number">6.3</span>
 basic.stc.dynamic.deallocation<a href="#basic.stc.dynamic.deallocation" class="self-link"></a></h2>
 <p>Updates for <span><a href="https://wg21.link/basic.stc.dynamic.deallocation">[basic.stc.dynamic.deallocation]</a></span></p>
 <p><span class="ednote" style="color: #0000ff">[ Editor&#39;s note: As with
@@ -1027,7 +1034,7 @@ type-identity, and the type-identity is the only dependent parameter
 where <span><code class="sourceCode default">T</code></span> is a
 dependent type).</ins></span></p>
 </blockquote>
-<h2 data-number="6.3" id="expr.new"><span class="header-section-number">6.3</span> expr.new<a href="#expr.new" class="self-link"></a></h2>
+<h2 data-number="6.4" id="expr.new"><span class="header-section-number">6.4</span> expr.new<a href="#expr.new" class="self-link"></a></h2>
 <p>Updates to <span><a href="https://wg21.link/expr.new">[expr.new]</a></span></p>
 <p><span class="ednote" style="color: #0000ff">[ Editor&#39;s note: We are
 adding a new implicit tag parameter to the head of the argument list,
@@ -1161,7 +1168,7 @@ otherwise the program is ill formed.</p>
 </blockquote>
 
 </div>
-<h2 data-number="6.4" id="expr.delete"><span class="header-section-number">6.4</span> expr.delete<a href="#expr.delete" class="self-link"></a></h2>
+<h2 data-number="6.5" id="expr.delete"><span class="header-section-number">6.5</span> expr.delete<a href="#expr.delete" class="self-link"></a></h2>
 <div class="add" style="color: #006e28">
 
 <blockquote>
