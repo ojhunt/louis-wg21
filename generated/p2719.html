@@ -1460,23 +1460,7 @@ of implementing an operator for a hierarchy is this:</p>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span>std<span class="op">::</span>derived_from<span class="op">&lt;</span>Base<span class="op">&gt;</span> T<span class="op">&gt;</span></span>
 <span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> <span class="kw">operator</span> <span class="kw">delete</span><span class="op">(</span>std<span class="op">::</span>type_identity<span class="op">&lt;</span>T<span class="op">&gt;</span>, <span class="dt">void</span><span class="op">*)</span>;</span></code></pre></div>
-<h3 data-number="8.2.3" id="performance-considerations"><span class="header-section-number">8.2.3</span> Performance considerations<a href="#performance-considerations" class="self-link"></a></h3>
-<p>There is a fundamental difference between
-<code class="sourceCode default">T*</code> and
-<code class="sourceCode default">std::type_identity&lt;T&gt;</code> in
-that <code class="sourceCode default">T*</code> is a type that has an
-actual value and size, whereas
-<code class="sourceCode default">std::type_identity</code> is a zero
-sized record. This difference means that the
-<code class="sourceCode default">T*</code> model results in an
-additional parameter being required in the generated code, whereas the
-zero sized <code class="sourceCode default">type_identity</code>
-parameter does not exist in the majority of calling conventions. In
-principle this difference should be minor for templated operators as
-they are typically inlined and so the calling convention is not
-relevant, but for non-template definitions the implementation can be out
-of line, and so the difference may matter.</p>
-<p>For all of these reasons, we believe that a tag type like
+<p>For these reasons, we believe that a tag type like
 <code class="sourceCode default">std::type_identity</code> is the right
 design choice.</p>
 <h2 data-number="8.3" id="design-choice-location-of-stdtype_identityt"><span class="header-section-number">8.3</span> Design choice: Location of
