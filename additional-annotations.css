@@ -2,12 +2,18 @@
   font-style: oblique;
 }
 
-
-.draftnote[data-group]:before {
+.draftnote[data-question]:before {
   font-weight: bold;
   color: blue;
   font-family: monospace;
-  content: "[Drafting Note - question for " attr(data-group) ": ";
+  content: "[Drafting Note - question for " attr(data-question) ": ";
+}
+
+.draftnote[data-audience]:before {
+  font-weight: bold;
+  color: blue;
+  font-family: monospace;
+  content: "[Drafting Note for " attr(data-audience) ": ";
 }
 
 .draftnote:before {

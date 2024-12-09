@@ -412,11 +412,17 @@ code.sourceCode > span { display: inline; }
   <style type="text/css">.draftnote {
 font-style: oblique;
 }
-.draftnote[data-group]:before {
+.draftnote[data-question]:before {
 font-weight: bold;
 color: blue;
 font-family: monospace;
-content: "[Drafting Note - question for " attr(data-group) ": ";
+content: "[Drafting Note - question for " attr(data-question) ": ";
+}
+.draftnote[data-audience]:before {
+font-weight: bold;
+color: blue;
+font-family: monospace;
+content: "[Drafting Note for " attr(data-audience) ": ";
 }
 .draftnote:before {
 font-weight: bold;
@@ -957,8 +963,8 @@ to include a feature detection macro
 release appropriate value.</p>
 <h2 data-number="6.2" id="basic.stc.dynamic.allocation"><span class="header-section-number">6.2</span> basic.stc.dynamic.allocation<a href="#basic.stc.dynamic.allocation" class="self-link"></a></h2>
 <p>Updates for <span><a href="https://wg21.link/basic.stc.dynamic.allocation">[basic.stc.dynamic.allocation]</a></span></p>
-<p><span class="draftnote" data-group="CWG">The wording changes here are
-intended to provide for the existence of a correct
+<p><span class="draftnote" data-audience="CWG">The wording changes here
+are intended to provide for the existence of a correct
 <code class="sourceCode default">operator new</code> or
 <code class="sourceCode default">operator new[]</code> in which the
 first parameter is a
@@ -1135,10 +1141,10 @@ argument is removed from the argument list;</p></li>
 <li><p><span class="marginalizedparent"><a class="marginalized">(20.2 -&gt; 21.2.2)</a></span>
 otherwise, an argument that is the type’s alignment and has type
 <code class="sourceCode default">std​::​align_val_t</code> is added into
-the argument list immediately after the first argument;</p></li>
-</ul></li>
-<li><p><span class="marginalizedparent"><a class="marginalized">(+ 21.3)</a></span>
+the argument list immediately after the size argument;</p></li>
+<li><p><span class="marginalizedparent"><a class="marginalized">(+ 21.2.3)</a></span>
 and then overload resolution is performed again.</p></li>
+</ul></li>
 </ul>
 </blockquote>
 <p><span class="draftnote">end the added inset + new sublist</span></p>
@@ -1146,11 +1152,10 @@ and then overload resolution is performed again.</p></li>
 
 <blockquote>
 <ul>
-<li><span class="marginalizedparent"><a class="marginalized">(21.4)</a></span> If
-no matching function has been found then paragraphs [21.3]-[21.4] are
-repeated starting from an argument list consisting of a single parameter
-that is the amount of space requested, and has type
-<code class="sourceCode default">std​::​size_t</code>.</li>
+<li><span class="marginalizedparent"><a class="marginalized">(21.3)</a></span> If
+no matching function was found and the type-identity argument was
+present in the argument list, the above overload resolution steps are
+repeated without the type-identity argument`.</li>
 </ul>
 </blockquote>
 
@@ -1172,10 +1177,10 @@ returned from the allocation function call as the <span class="rm" style="color:
 parameter</ins></span> of type
 <code class="sourceCode default">void *</code>.</p>
 </blockquote>
-<p><span class="draftnote" data-group="CWG">This restriction was not
-discussed in Wroclaw, but we believe is a useful hazard restriction
-given the lack of any mechanism to otherwise force co-definition of new
-and delete operators</span></p>
+<p><span class="draftnote" data-audience="CWG&amp;EWG">This restriction
+was not discussed in Wroclaw, but we believe is a useful hazard
+restriction given the lack of any mechanism to otherwise force
+co-definition of new and delete operators</span></p>
 <div class="add" style="color: #006e28">
 
 <blockquote>
@@ -1206,19 +1211,25 @@ overload resolution semantics to say - Perform template argument
 deduction and synthesis - this previously was not performed as it was
 definitionally not possible. - Specify selection of the best viable
 function given that it is now possible for multiple allocation functions
-of the same type to exist.</span> :::add &gt; &gt; <span class="marginalizedparent"><a class="marginalized">10</a></span> For
-each function template found, function template argument deduction &gt;
+of the same type to exist.</span></p>
+<div class="add" style="color: #006e28">
+
+<blockquote>
+<p><span class="marginalizedparent"><a class="marginalized">10</a></span> For
+each function template found, function template argument deduction
 (<span><a href="https://wg21.link/temp.deduct">[temp.deduct]</a></span>)
-is performed using the type of the type-identity as the &gt; first
-parameter, and the type of each subsequent parameter in the candidate
-function template. &gt; If argument deduction and checking succeeds, and
-the deduced type of the first parameter &gt; is the same type as the
-type identity tag, the deduced template-arguments are used to &gt;
-synthesize the declaration of a single function template specialization;
-Otherwise the &gt; declaration is eliminated from further consideration.
-:::</p>
-<p><span class="draftnote" data-group="CWG">It is unclear if this last
-constraint needs to be stated explicitly as it would require a
+is performed using the type of the type-identity as the first parameter,
+and the type of each subsequent parameter in the candidate function
+template. If argument deduction and checking succeeds, and the deduced
+type of the first parameter is the same type as the type identity tag,
+the deduced template-arguments are used to synthesize the declaration of
+a single function template specialization; Otherwise the declaration is
+eliminated from further consideration.</p>
+</blockquote>
+
+</div>
+<p><span class="draftnote" data-question="CWG">It is unclear if this
+last constraint needs to be stated explicitly as it would require a
 non-standard declaration of
 <code class="sourceCode default">std::type_identity</code> which I think
 would be UB?</span></p>
@@ -1279,6 +1290,9 @@ delete expression, as <span class="add" style="color: #006e28"><ins>the</ins></s
 argument if present</ins></span>.</p>
 </blockquote>
 <h2 data-number="6.6" id="expr.const"><span class="header-section-number">6.6</span> expr.const<a href="#expr.const" class="self-link"></a></h2>
+<p><span class="draftnote" data-audience="EWG">This text is a
+significant change in specification, but not intended behavior vs what
+was presented in Wroclaw</span></p>
 <blockquote>
 <p><span class="marginalizedparent"><a class="marginalized">(5.18.1)</a></span>
 the selected allocation function is a replaceable global allocation
@@ -1615,7 +1629,7 @@ e.g</p>
 </ul>
 <h2 data-number="7.8" id="design-choice-stripping-qualifiers-from-the-type"><span class="header-section-number">7.8</span> Design choice: Stripping
 qualifiers from the type<a href="#design-choice-stripping-qualifiers-from-the-type" class="self-link"></a></h2>
-<p><span class="draftnote" data-group="EWG">This is a significant
+<p><span class="draftnote" data-audience="EWG">This is a significant
 semantic change since Wroclaw following feedback from reviewers, however
 it has no change in implementation complexity and - from other feedback
 - seems to be what people had already expected</span></p>
