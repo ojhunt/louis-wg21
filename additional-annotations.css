@@ -1,0 +1,25 @@
+.draftnote {
+  font-style: oblique;
+}
+
+
+.draftnote[data-group]:before {
+  font-weight: bold;
+  color: blue;
+  font-family: monospace;
+  content: "[Drafting Note - question for " attr(data-group) ": ";
+}
+
+.draftnote:before {
+  font-weight: bold;
+  color: blue;
+  font-family: monospace;
+  content: "[Drafting Note: ";
+}
+
+.draftnote:after {
+  font-style: bold;
+  color: blue;
+  font-family: monospace;
+  content: "]";
+}
