@@ -890,11 +890,11 @@ the class’s non virtual destructor).</p>
 <span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>  <span class="kw">new</span> SubClass4<span class="op">()</span>;       <span class="co">// calls (6) as the class scoped operator wins</span></span>
 <span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>  <span class="kw">new</span> <span class="dt">int</span><span class="op">()</span>;             <span class="co">// calls (2) with T=int</span></span>
 <span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
-<blockquote>
-<p>Note: The above is for illustrative purposes only: it is a bad idea
-to provide a fully unconstrained type-aware
-<code class="sourceCode default">operator new</code>.</p>
-</blockquote>
+<p><span class="note"><span>[ <em>Note:</em> </span>The above is for
+illustrative purposes only: it is a bad idea to provide a fully
+unconstrained type-aware
+<code class="sourceCode default">operator new</code>.<span> — <em>end
+note</em> ]</span></span></p>
 <h2 data-number="5.2" id="in-class-example"><span class="header-section-number">5.2</span> In-class example<a href="#in-class-example" class="self-link"></a></h2>
 <div class="sourceCode" id="cb14"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co">// In-class operator</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SubClass1;</span>
@@ -991,9 +991,9 @@ the <em>type-identity parameter</em>, and the second parameter is called
 the <em>size parameter</em>. Otherwise, the first parameter is called
 the size parameter.</ins></span> The <span class="rm" style="color: #bf0303"><del>first</del></span><span class="add" style="color: #006e28"><ins>size</ins></span> parameter shall have type
 <code class="sourceCode default">std​::​size_t</code> (<span><a href="https://wg21.link/support.types">[support.types]</a></span>).
-<span class="rm" style="color: #bf0303"><del>The first</del></span><span class="add" style="color: #006e28"><ins>Both the type-identity, if
-present, and the size</ins></span> parameters shall not have an
-associated default argument (<span><a href="https://wg21.link/dcl.fct.default">[dcl.fct.default]</a></span>).
+<span class="rm" style="color: #bf0303"><del>The first</del></span><span class="add" style="color: #006e28"><ins>Neither the type-identity, if
+present, nor the size</ins></span> parameters shall <span class="rm" style="color: #bf0303"><del>not</del></span>have an associated default
+argument (<span><a href="https://wg21.link/dcl.fct.default">[dcl.fct.default]</a></span>).
 The value of the <span class="rm" style="color: #bf0303"><del>first</del></span><span class="add" style="color: #006e28"><ins>size</ins></span> parameter is interpreted
 as the requested size of the allocation. An allocation function can be a
 function template. Such a template shall declare its return type and
@@ -1003,11 +1003,12 @@ type-identity parameter shall be a specialization of
 <span><code class="sourceCode default">std::type_identity</code></span></ins></span>
 (that is, template <span class="add" style="color: #006e28"><ins>arguments</ins></span><span class="rm" style="color: #bf0303"><del>argument types</del></span> shall not be
 used in the return type and <span class="rm" style="color: #bf0303"><del>first</del></span><span class="add" style="color: #006e28"><ins>size</ins></span> parameter type<span class="add" style="color: #006e28"><ins>, and if present in the
-declaration of the type-identity parameter they only be used in the
-template argument to
+declaration of the type-identity parameter, they shall only be used in
+the template argument to
 <span><code class="sourceCode default">std::type_identity</code></span></ins></span>).
-Allocation function templates <span class="add" style="color: #006e28"><ins>that do not have a type-identity
-parameter</ins></span> shall have two or more parameters.</p>
+<span class="add" style="color: #006e28"><ins>If such a function or
+function template does not have a type-identity parameter
+it</ins></span> shall have two or more parameters.</p>
 </blockquote>
 <h2 data-number="6.3" id="basic.stc.dynamic.deallocation"><span class="header-section-number">6.3</span>
 basic.stc.dynamic.deallocation<a href="#basic.stc.dynamic.deallocation" class="self-link"></a></h2>
@@ -1029,19 +1030,21 @@ operator delete.</p>
 <blockquote>
 <p><span class="marginalizedparent"><a class="marginalized">3</a></span>Each
 deallocation function shall return void. <span class="add" style="color: #006e28"><ins>A deallocation function shall have at least
-one parameter. If the first parameter is a of type
+one parameter. If the first parameter is of type
 <span><code class="sourceCode default">std::type_identity&lt;T&gt;</code></span>
 for some type <span><code class="sourceCode default">T</code></span>,
 there shall be at least two parameters; the first parameter is called
-the type-identity parameter, the second parameter is called the object
-parameter. Otherwise, the first parameter is called the object
-parameter.</ins></span> If the function is a destroying operator delete
-declared in class type C, the type of its <span class="rm" style="color: #bf0303"><del>first</del></span><span class="add" style="color: #006e28"><ins>object</ins></span> parameter shall be
+the <em>type-identity parameter</em>, the second parameter is called the
+<em>address parameter</em>. Otherwise, the first parameter is called the
+object parameter.</ins></span> If the function is a destroying operator
+delete declared in class type C, the type of its <span class="rm" style="color: #bf0303"><del>first</del></span><span class="add" style="color: #006e28"><ins>address</ins></span> parameter shall be
 <code class="sourceCode default">C*</code>; otherwise, the type of its
-<span class="rm" style="color: #bf0303"><del>first</del></span><span class="add" style="color: #006e28"><ins>object</ins></span> parameter
+<span class="rm" style="color: #bf0303"><del>first</del></span><span class="add" style="color: #006e28"><ins>address</ins></span> parameter
 shall be <code class="sourceCode default">void*</code>. A deallocation
-function may have more than one parameter. A usual deallocation function
-is a deallocation function whose parameters after the <span class="rm" style="color: #bf0303"><del>first</del></span><span class="add" style="color: #006e28"><ins>object parameter</ins></span> are</p>
+function may have <span class="rm" style="color: #bf0303"><del>more than
+one parameter</del></span><span class="add" style="color: #006e28"><ins>additional parameters beyond the
+type-identity and address parameters</ins></span>. <span class="add" style="color: #006e28"><ins></ins></span> A usual deallocation function
+is a deallocation function whose parameters after the <span class="rm" style="color: #bf0303"><del>first</del></span><span class="add" style="color: #006e28"><ins>address parameter</ins></span> are</p>
 <ul>
 <li><span class="marginalizedparent"><a class="marginalized">(3.1)</a></span>optionally,
 a parameter of type std​::​destroying_delete_t, then</li>
@@ -1051,11 +1054,21 @@ a parameter of type std​::​size_t, then</li>
 a parameter of type std​::​align_val_t.</li>
 </ul>
 <p>A destroying operator delete shall be a usual deallocation function.
-A deallocation function may be an instance of a function template.
-Neither the <span class="rm" style="color: #bf0303"><del>first</del></span><span class="add" style="color: #006e28"><ins>object</ins></span> parameter nor the return
-type shall depend on a template parameter. A deallocation function
-template shall have two or more function parameters. A template instance
-<span class="rm" style="color: #bf0303"><del>is never a usual
+A deallocation function may be <span class="rm" style="color: #bf0303"><del>an instance of a function
+template</del></span><span class="add" style="color: #006e28"><ins>templated</ins></span>. Neither the <span class="rm" style="color: #bf0303"><del>first</del></span><span class="add" style="color: #006e28"><ins>address</ins></span> parameter
+nor the return type shall depend on a template parameter. A deallocation
+function <span class="rm" style="color: #bf0303"><del>template shall
+have two or more function parameters.</del></span> <span class="add" style="color: #006e28"><ins>can be a function template. Such a template
+shall declare its address parameter as specified above. If present the
+type-identity parameter shall be a specialization of
+<span><code class="sourceCode default">std::type_identity</code></span>
+(that is, template arguments shall not be used in the address parameter
+type, and if present in the declaration of the type-identity parameter,
+they shall only be used in the template argument to
+<span><code class="sourceCode default">std::type_identity</code></span>).
+If such a function or function template does not have a type-identity
+parameter it shall have two or more parameters.</ins></span> A template
+instance <span class="rm" style="color: #bf0303"><del>is never a usual
 deallocation function, regardless of its signature.</del></span><span class="add" style="color: #006e28"><ins>is only a usual deallocation
 function if it has at least two parameters, the first parameter is a
 type-identity, and the type-identity is the only dependent parameter
@@ -1106,7 +1119,7 @@ the argument list immediately after the first argument;</li>
 
 <blockquote>
 <p><span class="marginalizedparent"><a class="marginalized">20</a></span> The
-type-identity is a default-initialized object of type
+<em>type-identity argument</em> is a value of type
 <code class="sourceCode default">std::type_identity&lt;U&gt;</code>.
 When the allocated type is “array of N T”, U is T with qualifiers
 removed; otherwise, U is the allocated type with qualifiers removed.</p>
@@ -1124,7 +1137,7 @@ numbered/put into a sub-list</span></p>
 <ul>
 <li><p><span class="marginalizedparent"><a class="marginalized">(+ 21.1)</a></span>
 <span class="add" style="color: #006e28"><ins>The first argument is the
-type-identity, the second</ins></span><span class="rm" style="color: #bf0303"><del>The first</del></span> argument is the
+type-identity argument, the second</ins></span><span class="rm" style="color: #bf0303"><del>The first</del></span> argument is the
 amount of space requested, and has type
 <code class="sourceCode default">std​::​size_t</code>.</p></li>
 <li><p><span class="marginalizedparent"><a class="marginalized">(+ 21.2)</a></span>
@@ -1173,7 +1186,7 @@ and object</ins></span> are identical.</p>
 <p><span class="marginalizedparent"><a class="marginalized">30</a></span> If a
 new-expression calls a deallocation function it passes <span class="add" style="color: #006e28"><ins>the type-identity as the first argument if
 it was passed to the allocation function, and</ins></span> the value
-returned from the allocation function call as the <span class="rm" style="color: #bf0303"><del>first argument</del></span><span class="add" style="color: #006e28"><ins>argument for the object
+returned from the allocation function call as the <span class="rm" style="color: #bf0303"><del>first argument</del></span><span class="add" style="color: #006e28"><ins>argument for the address
 parameter</ins></span> of type
 <code class="sourceCode default">void *</code>.</p>
 </blockquote>
@@ -1184,9 +1197,10 @@ co-definition of new and delete operators</span></p>
 <div class="add" style="color: #006e28">
 
 <blockquote>
-<p><span class="marginalizedparent"><a class="marginalized">31</a></span> If
-either the allocation or deallocation function have a type-identity
-parameter, then both functions shall be defined in the same context,
+<p><span class="marginalizedparent"><a class="marginalized">31</a></span> If a
+single matching deallocation is found and either the allocation function
+or the deallocation function has a type-identity parameter, then both
+functions shall belong to the same scope (<span><a href="https://wg21.link/basic.scope.scope">[basic.scope.scope]</a></span>),
 otherwise the program is ill formed.</p>
 </blockquote>
 
@@ -1197,8 +1211,8 @@ otherwise the program is ill formed.</p>
 <blockquote>
 <p><span class="marginalizedparent"><a class="marginalized">9</a></span>
 For an delete operator applied to an operand of type
-<code class="sourceCode default">T*</code>, type-identity argument is an
-object of type
+<code class="sourceCode default">T*</code>, <em>type-identity
+argument</em> is a value of type
 <code class="sourceCode default">std::type_identity&lt;U&gt;</code>
 where <code class="sourceCode default">U</code> is the result of
 removing all qualifiers from the type
@@ -1263,14 +1277,22 @@ consideration.</li>
 If the type has new-extended alignment, a function with a parameter of
 type std​::​align_val_t is preferred; otherwise a function without such a
 parameter is preferred. If any preferred functions are found, all
-non-preferred functions are eliminated from further consideration. :::
-add</li>
+non-preferred functions are eliminated from further consideration.</li>
+</ul>
+</blockquote>
+<div class="add" style="color: #006e28">
+
+<blockquote>
+<ul>
 <li><span class="marginalizedparent"><a class="marginalized">(11.4)</a></span> If
 multiple functions of the same type are found, only the most viable
 functions <span><a href="https://wg21.link/over.match.best">[over.match.best]</a></span>
-are retained, all others are eliminated from further consideration.
-:::</li>
+are retained, all others are eliminated from further consideration.</li>
 </ul>
+</blockquote>
+
+</div>
+<blockquote>
 <p>…</p>
 <p><span class="marginalizedparent"><a class="marginalized">10-&gt;12</a></span> For
 a single-object delete expression, the deleted object is the object A
