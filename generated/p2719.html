@@ -1570,8 +1570,8 @@ of the form:</p>
 <p>Which, while distasteful and verbose, does work.</p>
 <p>However this proposal introduces the possibility, and for some use
 cases the probability, of finding matching operators for non-placement
-new in the global scope and so being unusable in consteval contexts. As
-a result we risk putting developers in the unreasonable position of
+new in the global scope and so being unusable in constant expressions.
+As a result we risk putting developers in the unreasonable position of
 having to choose between two different language features, both of which
 are extremely valuable.</p>
 <p>Our solution is to treat type aware global allocators that have no
@@ -1580,13 +1580,28 @@ such permit them to be assumed to behave in a like manner. In addition
 to permitting general global type aware allocators without breaking
 dynamic allocation in constant evaluation, this also provides a path to
 supporting class specialized allocators without sacrificing usability in
-constant contexts.</p>
-<p>Alternative approaches, that might also be useful for other contexts
-(static analysis, debug tooling, etc) would be:</p>
+constant evaluation contexts.</p>
+<p>Possible alternative approaches, that might also be useful for other
+contexts (static analysis, debug tooling, etc) would be:</p>
 <ul>
 <li><p>an attribute that can be applied to allocation functions to
 declare that they can be treated as if they are usual allocation
 functions in constant evaluation (or other?) contexts</p></li>
+<li><p>allow constexpr type aware allocation functions in constant
+evaluation, as the functions have the access to the type being allocated
+so are able to use <code class="sourceCode cpp">std<span class="op">::</span>allocator</code>,
+e.g:</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> <span class="op">*</span><span class="kw">operator</span> <span class="kw">new</span><span class="op">(</span>std<span class="op">::</span>type_identity<span class="op">&lt;</span>X<span class="op">&gt;</span> type, <span class="dt">size_t</span> sz<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> <span class="kw">consteval</span> <span class="op">{</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>    std<span class="op">::</span>allocator<span class="op">&lt;</span><span class="kw">decltype</span><span class="op">(</span>type<span class="op">)::</span>type<span class="op">&gt;</span> alloc;</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> alloc<span class="op">.</span>allocate<span class="op">(</span>sz<span class="op">)</span>;</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>  <span class="op">...</span></span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>This only works as std::allocator is stateless so the allocation
+lifetime can outlive the std::allocator’s lifetime. A further downside
+to this losing the ability to ensure matching allocation and
+deallocation functions.</p></li>
 <li><p>allow dynamic allocation in constexpr contexts via calls to <code class="sourceCode cpp"><span class="op">::</span><span class="kw">operator</span> <span class="kw">new</span><span class="op">(</span><span class="dt">size_t</span><span class="op">)</span></code>
 and <code class="sourceCode cpp"><span class="op">::</span><span class="kw">operator</span> <span class="kw">delete</span><span class="op">(</span><span class="dt">void</span><span class="op">*)</span></code>
 or some similar function, and then permit use of constexpr operator
@@ -1594,15 +1609,18 @@ or some similar function, and then permit use of constexpr operator
 <code class="sourceCode cpp"><span class="kw">delete</span></code>. This
 would allow custom allocators <em>if</em> they are inline, even when not
 type aware. e.g</p>
-<div class="sourceCode" id="cb31"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Foo <span class="op">{</span></span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">constexpr</span> <span class="dt">void</span><span class="op">*</span> <span class="kw">operator</span> <span class="kw">new</span><span class="op">(</span><span class="dt">size_t</span> sz, SomeContext Ctx<span class="op">)</span> <span class="op">{</span></span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">consteval</span> <span class="op">{</span></span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>      <span class="cf">return</span> <span class="op">::</span><span class="kw">operator</span> <span class="kw">new</span><span class="op">(</span>sz<span class="op">)</span>;</span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
-<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Do custom allocation work</span></span>
-<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
-<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
-<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div></li>
+<div class="sourceCode" id="cb32"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Foo <span class="op">{</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">constexpr</span> <span class="dt">void</span><span class="op">*</span> <span class="kw">operator</span> <span class="kw">new</span><span class="op">(</span><span class="dt">size_t</span> sz, SomeContext Ctx<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">consteval</span> <span class="op">{</span></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>      <span class="cf">return</span> <span class="op">::</span><span class="kw">operator</span> <span class="kw">new</span><span class="op">(</span>sz<span class="op">)</span>;</span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Do custom allocation work</span></span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>These are simply the most obvious solutions, and more comprehensive
+solutions likely exist, so addressing this fully is outside of the scope
+of this feature.</p></li>
 </ul>
 <h2 data-number="7.8" id="design-choice-stripping-qualifiers-from-the-type"><span class="header-section-number">7.8</span> Design choice: Stripping
 qualifiers from the type<a href="#design-choice-stripping-qualifiers-from-the-type" class="self-link"></a></h2>
@@ -1613,9 +1631,9 @@ would be surprising, is inconsistent with how the type being allocated
 is presented to the developer throughout the process of allocation and
 deallocation, and results in the type-identity trivially diverging
 between such allocation and deallocation e.g.</p>
-<div class="sourceCode" id="cb32"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> T <span class="op">*</span>t <span class="op">=</span> <span class="kw">new</span> T;</span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="op">...</span></span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="kw">delete</span> t;</span></code></pre></div>
+<div class="sourceCode" id="cb33"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> T <span class="op">*</span>t <span class="op">=</span> <span class="kw">new</span> T;</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="op">...</span></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="kw">delete</span> t;</span></code></pre></div>
 <h2 data-number="7.9" id="interactions-with-stdallocatort"><span class="header-section-number">7.9</span> Interactions with <code class="sourceCode cpp">std<span class="op">::</span>allocator<span class="op">&lt;</span>T<span class="op">&gt;</span></code><a href="#interactions-with-stdallocatort" class="self-link"></a></h2>
 <p>Today, <code class="sourceCode cpp">std<span class="op">::</span>allocator<span class="op">&lt;</span>T<span class="op">&gt;::</span>allocate</code>
 is specified to call <code class="sourceCode cpp"><span class="op">::</span><span class="kw">operator</span> <span class="kw">new</span><span class="op">(</span>std<span class="op">::</span><span class="dt">size_t</span><span class="op">)</span></code>
