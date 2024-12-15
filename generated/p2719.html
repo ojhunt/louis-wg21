@@ -1284,12 +1284,19 @@ delete expression, as <span class="add" style="color: #006e28"><ins>the</ins></s
 argument if present</ins></span>.</p>
 </blockquote>
 <h2 data-number="6.6" id="expr.const"><span class="header-section-number">6.6</span> expr.const<a href="#expr.const" class="self-link"></a></h2>
+<p><span class="draftnote" data-audience="EWG" style="color: #0000ff">[
+Drafting note for EWG: Supporting type aware new and delete in constant
+expressions was discussed, but this section was not present in the
+drafts presented at the Wroclaw meeting. For system allocators this is
+something that needs to be supported. In principle vendor extensions
+would be able support the required use case pending a more universally
+applicable constexpr operator new/operator delete story. ]</span></p>
 <blockquote>
 <p><span class="marginalizedparent"><a class="marginalized">(5.18.1)</a></span>
 the selected allocation function is a replaceable global allocation
 function (<span><a href="https://wg21.link/new.delete.single">[new.delete.single]</a></span>,
 <span><a href="https://wg21.link/new.delete.array">[new.delete.array]</a></span>)
-<span class="add" style="color: #006e28"><ins>or an global type aware
+<span class="add" style="color: #006e28"><ins>or a global type aware
 allocation function where, if the the type identity tag is ignored,
 matches a replaceable global allocation function</ins></span> and the
 allocated storage is deallocated within the evaluation of E, or</p>
@@ -1618,9 +1625,11 @@ type aware. e.g</p>
 <span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
 <span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
 <span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
-<p>These are simply the most obvious solutions, and more comprehensive
-solutions likely exist, so addressing this fully is outside of the scope
-of this feature.</p></li>
+<p>We have a <a href="https://github.com/swiftlang/llvm-project/tree/users/ojhunt/P2719-constexpr-allocation">basic
+implementation</a> of this concept however we’re not absolutely certain
+that this is the best long term solution. These are simply the most
+obvious solutions, and more comprehensive solutions likely exist, so
+addressing this fully is outside of the scope of this feature.</p></li>
 </ul>
 <h2 data-number="7.8" id="design-choice-stripping-qualifiers-from-the-type"><span class="header-section-number">7.8</span> Design choice: Stripping
 qualifiers from the type<a href="#design-choice-stripping-qualifiers-from-the-type" class="self-link"></a></h2>
