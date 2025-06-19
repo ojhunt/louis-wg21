@@ -508,7 +508,7 @@ pointer. The included signature is called a Pointer Authentication Code
 in the extension, but in practive we refer to the combination of PAC and
 pointer as being either as authenticated or signed pointer.</p>
 <p>Subsequent use of that pointer requires use of matching instructions
-that verify that the signature of a authenticated pointer and lead to a
+that verify that the signature of an authenticated pointer and lead to a
 fault if the signature is incorrect at the time of use.</p>
 <p>There are numerous instructions provided to support these operations,
 but the core semantic operations are</p>
@@ -541,11 +541,11 @@ supported and modeled in clang, and how it is exposed to developers.
 These behaviors are specific to how clang has chosen to model this
 feature, and is not inherent to the behavior of the ISA itself.</p>
 <h2 data-number="4.1" id="authentication-schemas"><span class="header-section-number">4.1</span> Authentication schemas<a href="#authentication-schemas" class="self-link"></a></h2>
-<p>While clang provides intrinsics to directly use the operations
-instructions introduced to support pointer authentication, the more
-valuable and usable path is to have clang manage the pointer
-authentication operations itself. We do this by having a number of paths
-by which an authentication schema can be associated with a value.</p>
+<p>While clang provides intrinsics to directly use the instructions
+introduced to support pointer authentication, the more valuable and
+usable path is to have clang manage the pointer authentication
+operations itself. We do this by having a number of paths by which an
+authentication schema can be associated with a type.</p>
 <p>There are two ways for a value to have an associated authentication
 schema. The first is that the platform ABI defines default schemas for
 different kinds of pointers, such as function pointers, member function
@@ -675,7 +675,25 @@ pointers</li>
 <p>In all of these cases clang will use special case instructions when
 possible, e.g. there are instructions to perform authenticated indirect
 branches and calls.</p>
-<h2 data-number="4.5" id="edge-cases"><span class="header-section-number">4.5</span> Edge cases<a href="#edge-cases" class="self-link"></a></h2>
+<h2 data-number="4.5" id="polymorphic-objects"><span class="header-section-number">4.5</span> Polymorphic objects<a href="#polymorphic-objects" class="self-link"></a></h2>
+<p>Most people in the committee who have learned of the existence of
+pointer authentication, have learned about it in the context of v-table
+pointers. This has come up frequently as the impact of the implicit
+schema used for v-table pointers includes address discrimination, and so
+using memcopy/memmove to move an object produces an invalid object. As a
+result no polymorphic objects on a platform that has adopted this schema
+can be copied by memcopy.</p>
+<p>But the use of memcopy to copy polymorphic objects has never been
+sound as copy/move constructors and copy/move assignment operators are
+never trivial for polymorphic classes.</p>
+<p>The rationale for this design is discussed more fully in the appendix
+to this document, but the brief summary is that every v-table pointer in
+an object is signed with an authentication schema that includes the
+storage address of the v-table pointer, and the type of the primary base
+class that introduced that specific v-table. Each slot in a v-table is
+authenticated with the storage address of that slot, and a discriminator
+derived from the original declaration that introduced that slot.</p>
+<h2 data-number="4.6" id="edge-cases"><span class="header-section-number">4.6</span> Edge cases<a href="#edge-cases" class="self-link"></a></h2>
 <p>Clang’s implementation of pointer authentication does include a
 number of features/behaviours to minimize the impedance mismatch with
 existing and historical C and C++, and to reduce the performance
@@ -696,50 +714,6 @@ authentication operations.</li>
 results in a non-POD C struct, with interesting results that shall be
 left as an exercise for the reader.</li>
 </ul>
-<h2 data-number="4.6" id="polymorphic-objects"><span class="header-section-number">4.6</span> Polymorphic objects<a href="#polymorphic-objects" class="self-link"></a></h2>
-<p>The approach clang has taken to protecting polymorphic objects is has
-been the greatest source of complexity to the C++ standard. The ABI has
-been intentionally designed to protect against some of the most common
-and powerful classes of attacks on C++ codebases.</p>
-<p>The intent of the schemas used to protect the v-table pointer and the
-v-table pointer slots is to protect against use-after-free errors, type
-confusions, subobject confusion, and attackers with arbitrary read and
-write primitives. This protection is achieved by adopting an
-authentication schema that uses address and type discrimated to protect
-each v-table pointer in an object, and then type and address
-discrimination for each slot in the type’s v-table. This schema is
-possible as copy/move constructors and copy/move assignment operators
-are never trivial for polymorphic classes.</p>
-<p>In pseudo code if we were to consider something like this:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> my_object <span class="op">{</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">virtual</span> <span class="dt">void</span> func<span class="op">(</span><span class="dt">int</span><span class="op">)</span>;</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> some_field;</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span></code></pre></div>
-<p>would look something like (ignoring exact v-table layout)</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> my_object_vtable_ty <span class="op">{</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">using</span> func_type_ptr <span class="op">=</span> <span class="dt">void</span><span class="op">(*)(</span>my_object<span class="op">*</span>, <span class="dt">int</span><span class="op">)</span>;</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  func_type_ptr __ptrauth<span class="op">(</span>somekey, <span class="dv">1</span>, discriminator_for<span class="op">(</span>func_type_ptr<span class="op">))</span> func_ptr;</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>my_object_vtable_ty my_object_vtable <span class="op">=</span> <span class="op">{</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span>func_ptr <span class="op">=</span> <span class="op">&amp;</span>impl</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> my_object <span class="op">{</span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  my_object_vtable_ty <span class="op">*</span>__ptrauth<span class="op">(</span>somekey, <span class="dv">1</span>, discriminator_for<span class="op">(</span>my_object_vtable_ty<span class="op">))</span> vtable;</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> some_field;</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span></code></pre></div>
-<p>a virtual call then becomes</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> f<span class="op">(</span>my_object<span class="op">*</span> o<span class="op">)</span> <span class="op">{</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="co">// o-&gt;func(x)</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> vtable_disc <span class="op">=</span> blend_discriminator<span class="op">(&amp;</span>object<span class="op">-&gt;</span>vtable, discriminator_for<span class="op">(</span>my_object_vtable_ty<span class="op">))</span>;</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> vtable <span class="op">=</span> authenticate_pointer<span class="op">(</span>object<span class="op">-&gt;</span>vtable, somekey, vtable_disc<span class="op">)</span>;</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> vtable_slot_disc <span class="op">=</span> blend_discriminator<span class="op">(&amp;</span>vtable<span class="op">-&gt;</span>func_ptr, discriminator_for<span class="op">(</span>my_object_vtable_ty<span class="op">::</span>func_type_ptr<span class="op">))</span>;</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> virtual_func <span class="op">=</span> authenticate_pointer<span class="op">(</span>vtable<span class="op">-&gt;</span>func_ptr, somekey, vtable_slot_disc<span class="op">)</span>;</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  virtual_func<span class="op">(</span>o, x<span class="op">)</span>;</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
-<p>This is a high level approximation, and in practice the type derived
-discriminators used for v-tables are distinct from those derived in non
-v-table contexts, and are tied to the primary declarations of each
-v-table pointer or slot.</p>
 <h1 data-number="5" id="general-safety-hazards"><span class="header-section-number">5</span> General safety hazards<a href="#general-safety-hazards" class="self-link"></a></h1>
 <p>This paper is focused on pointer authentication as modeled by clang,
 and as such is highly specific to clang’s implementation. But there are
@@ -751,16 +725,17 @@ that can be used by an attacker to correctly sign an arbitrary value of
 their choice. This is called a signing oracle, and is an easy mistake to
 introduce in “obvious” code.</p>
 <p>For example a simple looking piece of code:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> <span class="op">*</span>load_value<span class="op">()</span>;</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> <span class="op">*</span>__ptrauth<span class="op">(...)</span> p <span class="op">=</span> <span class="kw">nullptr</span>;</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="op">...</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>p <span class="op">=</span> load_value<span class="op">()</span>;</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="op">...</span></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> <span class="op">*</span>load_value<span class="op">()</span> <span class="op">{</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="co">// interact with attacker controlled data, including any heap or stack data</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="co">// that can be manipulated</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> the_value;</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> <span class="op">*</span>load_value<span class="op">()</span>;</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> <span class="op">*</span>__ptrauth<span class="op">(...)</span> p <span class="op">=</span> <span class="kw">nullptr</span>;</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="op">...</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>p <span class="op">=</span> load_value<span class="op">()</span>;</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="op">...</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> <span class="op">*</span>load_value<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="co">// interact with attacker controlled data, including any heap or stack data</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="co">// that can be manipulated</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="op">...</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> the_value;</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
 <p>will result in a correctly signed value that an attacker can
 control.</p>
 <p>Avoiding such oracles requires significant care be taken to ensure
@@ -776,28 +751,28 @@ you have authenticated previously may get spilled prior to being used
 (or re-signed)</p>
 <p>For example imagine something like a manual implementation of a
 v-table:</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> my_object_t <span class="op">=</span> <span class="kw">struct</span> my_object;</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> my_function_table <span class="op">{</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">void</span> <span class="op">(*</span>func<span class="op">)(</span>my_object_t<span class="op">*</span>, <span class="dt">int</span> value<span class="op">)</span>;</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> my_object <span class="op">{</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  my_function_table <span class="op">*</span>__ptrauth<span class="op">(...)</span> dispatch_table;</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> f<span class="op">(</span>my_object<span class="op">*</span> obj<span class="op">)</span> <span class="op">{</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  obj<span class="op">-&gt;</span>dispatch_table<span class="op">-&gt;</span>func<span class="op">(</span>obj, some_function<span class="op">())</span>;</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> my_object_t <span class="op">=</span> <span class="kw">struct</span> my_object;</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> my_function_table <span class="op">{</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">void</span> <span class="op">(*</span>func<span class="op">)(</span>my_object_t<span class="op">*</span>, <span class="dt">int</span> value<span class="op">)</span>;</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> my_object <span class="op">{</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  my_function_table <span class="op">*</span>__ptrauth<span class="op">(...)</span> dispatch_table;</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> f<span class="op">(</span>my_object<span class="op">*</span> obj<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  obj<span class="op">-&gt;</span>dispatch_table<span class="op">-&gt;</span>func<span class="op">(</span>obj, some_function<span class="op">())</span>;</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
 <p>This can easily become equivalent to</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> f<span class="op">(</span>my_object<span class="op">*</span> obj<span class="op">)</span> <span class="op">{</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> func_ptr unprotected_tmp <span class="op">=</span> obj<span class="op">-&gt;</span>dispatch_table<span class="op">-&gt;</span>func;</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> temp <span class="op">=</span> some_function<span class="op">()</span>; <span class="co">// spills unprotected_tmp, allowing an attacker to overwrite</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>                              <span class="co">// unprotected_tmp</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  unprotected_tmp<span class="op">(</span>obj, temp<span class="op">)</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> f<span class="op">(</span>my_object<span class="op">*</span> obj<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> func_ptr unprotected_tmp <span class="op">=</span> obj<span class="op">-&gt;</span>dispatch_table<span class="op">-&gt;</span>func;</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> temp <span class="op">=</span> some_function<span class="op">()</span>; <span class="co">// spills unprotected_tmp, allowing an attacker to overwrite</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>                              <span class="co">// unprotected_tmp</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  unprotected_tmp<span class="op">(</span>obj, temp<span class="op">)</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
 <p>This kind of spilling can also create a signing oracle if you write
 code that performs something akin to</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span><span class="op">*</span> pointer <span class="op">=</span> authenticate_pointer<span class="op">(...)</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>some_function<span class="op">()</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>protected_pointer <span class="op">=</span> sign<span class="op">(</span>pointer, <span class="op">...)</span></span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span><span class="op">*</span> pointer <span class="op">=</span> authenticate_pointer<span class="op">(...)</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>some_function<span class="op">()</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>protected_pointer <span class="op">=</span> sign<span class="op">(</span>pointer, <span class="op">...)</span></span></code></pre></div>
 <p>This particular attack can be mitigated by always assigning directly
 from authenticated storage to authenticated storage, in which case clang
 will do the correct thing. If clang’s automatic support is not
@@ -809,13 +784,13 @@ operation into a single instruction.</p>
 data integrity, and it has been deployed at large scale in real world
 software. While it does introduce some interesting scenarios that the
 committee has not had to consider previously, the changes it causes do
-not have as wide an impact to developer code as some have faired, and
+not have as wide an impact to developer code as some have feared, and
 case where authors choose to manually introduce greater protection are
 exposed to the language in ways that interact coherently with the rest
 of the type system.</p>
 <h1 data-number="7" id="acknowledgements"><span class="header-section-number">7</span> Acknowledgements<a href="#acknowledgements" class="self-link"></a></h1>
-<p>Thanks to Roger Orr and Ryan Mallon for feedback on the initial draft
-of this paper.</p>
+<p>Thanks to Roger Orr, Ryan Mallon, and Jon Bauman for feedback on the
+initial draft of this paper.</p>
 <h1 data-number="8" id="appendix"><span class="header-section-number">8</span> Appendix<a href="#appendix" class="self-link"></a></h1>
 <p>The schemas clang uses to protect polymorphic objects have caused
 significant consternation among many people, in and outside of the
@@ -847,7 +822,7 @@ kernel.</p>
 <div class="note">
 <span>[ <em>Note:</em> </span>
 <blockquote>
-<p>Somewhat frustratingly despite the widespread availability of
+<p>Somewhat frustratingly given the widespread availability of
 documentation, tutorials, and classes, we have found that attackers
 persist in trying to do things that the relevant language standards
 clearly say are not permitted. As such we are forced to talk about what
@@ -893,7 +868,38 @@ well as the declaration that caused that v-table slot to be exist.</p>
 <p>Combined these strongly constrain the ability of an attacker to
 substitute, modify, or intermingle either v-table pointers or the
 content of v-tables.</p>
-<h2 data-number="8.3" id="examples"><span class="header-section-number">8.3</span> Examples<a href="#examples" class="self-link"></a></h2>
+<h2 data-number="8.3" id="pseudo-code-approximation"><span class="header-section-number">8.3</span> Pseudo-code approximation<a href="#pseudo-code-approximation" class="self-link"></a></h2>
+<p>In pseudo code if we were to consider something like this:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> my_object <span class="op">{</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">virtual</span> <span class="dt">void</span> func<span class="op">(</span><span class="dt">int</span><span class="op">)</span>;</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> some_field;</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span></code></pre></div>
+<p>would look something like (ignoring exact v-table layout)</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> my_object_vtable_ty <span class="op">{</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">using</span> func_type_ptr <span class="op">=</span> <span class="dt">void</span><span class="op">(*)(</span>my_object<span class="op">*</span>, <span class="dt">int</span><span class="op">)</span>;</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  func_type_ptr __ptrauth<span class="op">(</span>somekey, <span class="dv">1</span>, discriminator_for<span class="op">(</span>func_type_ptr<span class="op">))</span> func_ptr;</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>my_object_vtable_ty my_object_vtable <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span>func_ptr <span class="op">=</span> <span class="op">&amp;</span>impl</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> my_object <span class="op">{</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  my_object_vtable_ty <span class="op">*</span>__ptrauth<span class="op">(</span>somekey, <span class="dv">1</span>, discriminator_for<span class="op">(</span>my_object_vtable_ty<span class="op">))</span> vtable;</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> some_field;</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span></code></pre></div>
+<p>a virtual call then becomes</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> f<span class="op">(</span>my_object<span class="op">*</span> o<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="co">// o-&gt;func(x)</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> vtable_disc <span class="op">=</span> blend_discriminator<span class="op">(&amp;</span>object<span class="op">-&gt;</span>vtable, discriminator_for<span class="op">(</span>my_object_vtable_ty<span class="op">))</span>;</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> vtable <span class="op">=</span> authenticate_pointer<span class="op">(</span>object<span class="op">-&gt;</span>vtable, somekey, vtable_disc<span class="op">)</span>;</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> vtable_slot_disc <span class="op">=</span> blend_discriminator<span class="op">(&amp;</span>vtable<span class="op">-&gt;</span>func_ptr, discriminator_for<span class="op">(</span>my_object_vtable_ty<span class="op">::</span>func_type_ptr<span class="op">))</span>;</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> virtual_func <span class="op">=</span> authenticate_pointer<span class="op">(</span>vtable<span class="op">-&gt;</span>func_ptr, somekey, vtable_slot_disc<span class="op">)</span>;</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  virtual_func<span class="op">(</span>o, x<span class="op">)</span>;</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>This is a high level approximation, and in practice the type derived
+discriminators used for v-tables are distinct from those derived in non
+v-table contexts, and are tied to the primary declarations of each
+v-table pointer or slot.</p>
+<h2 data-number="8.4" id="examples"><span class="header-section-number">8.4</span> Examples<a href="#examples" class="self-link"></a></h2>
 <p>We’ll use the following basic hierarchy to try to demonstrate the
 classes of errors that the schema we have designed defends against.</p>
 <div class="sourceCode" id="cb11"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> A <span class="op">{</span></span>
@@ -944,7 +950,7 @@ incorrect accesses fail or succeed in equivalent cases.</p>
 <p>As we can see this is not a perfect defense, but it has substantially
 increased the complexity of using or manipulating in an attack to the
 extent that we no longer see them being targeted at all.</p>
-<h2 data-number="8.4" id="other-languages"><span class="header-section-number">8.4</span> Other languages<a href="#other-languages" class="self-link"></a></h2>
+<h2 data-number="8.5" id="other-languages"><span class="header-section-number">8.5</span> Other languages<a href="#other-languages" class="self-link"></a></h2>
 <p>C++ is not alone in having dynamic dispatch, and we have introduced
 analagous protections in languages like Objective-C, Objective-C++, and
 Swift. In cases where developers have manually implemented different
