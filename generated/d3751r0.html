@@ -604,32 +604,30 @@ authentication on the type system and language semantics<a href="#impact-of-poin
 <p>A lot of committee members have expressed concerns about knowing what
 they can or cannot do with any given pointer, how pointer authentication
 interacts with other features, or how invasive it is. The root of these
-issues is that there it is not widely understood just how often types
-are implicitly subject to pointer authentication, and how many of those
-implicit schemas enforce address discrimination/</p>
+issues is that it is not widely understood just how often types are
+implicitly subject to pointer authentication, and how many of those
+implicit schemas enforce address discrimination.</p>
 <p>In the model exposed by clang, there are very few cases where
 pointers have any implicit authentication schema, and even fewer cases
 where the implicit schema introduces address discrimination. The
 overwhelming majority of these cases are in opaque/implementation
-defined regions like v-table pointers, data in closures and lambdas,
-etc. When clang introduces such implicit authentication schemas it
-introduces the appropriate constructors and operators to meet the
-correct semantics.</p>
-<p>The most common case where authors interact with values with an
-implicit authentication schema is function pointers. To ensure binary
-and specification compatibility function pointers are required to
-memcopyable and so they are by default not address discriminated.</p>
+defined regions like v-table pointers, compiler produced coroutine
+state, etc. When clang synthesizes a type that includes fields protected
+by different authentication schemas, it ensures that the synthesized
+type includes appropriate move/copy constructors, assignment operators,
+in order to ensure that the resulting type conforms to the semantics
+required by the language standard.</p>
 <p>The language standard does constrain the options available when
 designing the implicit schemas to be applied as part of a platform’s
 ABI. As an example, function pointers and member function pointers are
 required to be trivially copyable, and so an implementation or platform
 that attempts to apply an address discriminating schema to such types
 implicitly would be non-conforming.</p>
-<p>In cases where authors do want the default authentication schema is
-not as strong as an author might wish, they can use an explicit
-<code class="sourceCode cpp">__ptrauth</code> qualifier to override the
-default schema, including the addition (or even removal) of address
-discrimination.</p>
+<p>There are cases where the default authentication schema is not as
+strong as an author may wish it be, and in such cases they are able to
+use the <code class="sourceCode cpp">__ptrauth</code> qualifier
+explicitly to override the default schema and specify that a different
+should be used instead.</p>
 <p>The <code class="sourceCode cpp">__ptrauth</code> qualifier behaves
 similarly in the language to some existing extended qualifiers, such as
 the address-space qualifiers described in the Embedded C TS (WG14
@@ -650,10 +648,11 @@ are not similar types, and a value of the former type can only be
 converted to the latter as a reinterpret_cast (which may then cause
 authentication failures if the object is accessed through that
 pointer).</p>
-<p>Fundamentally it does not matter how or where the
-<code class="sourceCode cpp">__ptrauth</code> qualifier is used, it does
-not introduce any fundamentally new ideas to the language, as everything
-that the qualifier does is already an option for a class type.</p>
+<p>At its core, it does not matter how or where the
+<code class="sourceCode cpp">__ptrauth</code> qualifier is used, as it
+does not introduce any fundamentally new ideas to the language.
+Everything that the qualifier does is already an option for any class
+type.</p>
 <h2 data-number="4.4" id="using-an-authenticated-pointer"><span class="header-section-number">4.4</span> Using an authenticated
 pointer<a href="#using-an-authenticated-pointer" class="self-link"></a></h2>
 <p>When a pointer is protected by an authentication schema that clang is
@@ -811,9 +810,9 @@ some general hazards to be aware for anyone working on or with pointer
 authentication as a security or safety feature.</p>
 <h2 data-number="5.1" id="signing-oracles"><span class="header-section-number">5.1</span> Signing oracles<a href="#signing-oracles" class="self-link"></a></h2>
 <p>The largest risk for pointer authentication is constructing a gadget
-that can be used by an attacker to correctly sign an arbitrary attacker
-controlled value. This is called a signing oracle, and is an easy
-mistake to introduce in “obvious” code.</p>
+that can be used by an attacker to correctly sign an arbitrary value of
+their choice. This is called a signing oracle, and is an easy mistake to
+introduce in “obvious” code.</p>
 <p>For example a simple looking piece of code:</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> <span class="op">*</span>load_value<span class="op">()</span>;</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> <span class="op">*</span>__ptrauth<span class="op">(...)</span> p <span class="op">=</span> <span class="kw">nullptr</span>;</span>
