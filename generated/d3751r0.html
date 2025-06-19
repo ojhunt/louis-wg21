@@ -482,6 +482,8 @@ hazards<span></span></a></li>
 <li><a href="#summary" id="toc-summary"><span class="toc-section-number">6</span> Summary<span></span></a></li>
 <li><a href="#acknowledgements" id="toc-acknowledgements"><span class="toc-section-number">7</span>
 Acknowledgements<span></span></a></li>
+<li><a href="#appendix" id="toc-appendix"><span class="toc-section-number">8</span> Appendix<span></span></a></li>
+<li><a href="#bibliography" id="toc-bibliography"><span class="toc-section-number">9</span> References<span></span></a></li>
 </ul>
 </div>
 <h1 data-number="1" id="introduction"><span class="header-section-number">1</span> Introduction<a href="#introduction" class="self-link"></a></h1>
@@ -630,8 +632,7 @@ explicitly to override the default schema and specify that a different
 should be used instead.</p>
 <p>The <code class="sourceCode cpp">__ptrauth</code> qualifier behaves
 similarly in the language to some existing extended qualifiers, such as
-the address-space qualifiers described in the Embedded C TS (WG14
-N1169). <code class="sourceCode cpp"><span class="dt">int</span> <span class="op">*</span></code>
+the address-space qualifiers described in the Embedded C TS <span class="citation" data-cites="N1169">[<a href="https://open-std.org/jtc1/sc22/wg14/www/docs/n1169.pdf" role="doc-biblioref">WG14 N1169</a>]</span>. <code class="sourceCode cpp"><span class="dt">int</span> <span class="op">*</span></code>
 , <code class="sourceCode cpp"><span class="dt">int</span> <span class="op">*</span> __ptrauth<span class="op">(</span><span class="dv">0</span>,<span class="dv">0</span>,<span class="dv">0</span><span class="op">)</span></code>,
 and <code class="sourceCode cpp"><span class="dt">int</span> <span class="op">*</span> __ptrauth<span class="op">(</span><span class="dv">0</span>,<span class="dv">1</span>,<span class="dv">0</span><span class="op">)</span></code>
 are all distinct types. Like
@@ -673,7 +674,7 @@ pointers</li>
 </ul>
 <p>In all of these cases clang will use special case instructions when
 possible, e.g. there are instructions to perform authenticated indirect
-branches and calls</p>
+branches and calls.</p>
 <h2 data-number="4.5" id="edge-cases"><span class="header-section-number">4.5</span> Edge cases<a href="#edge-cases" class="self-link"></a></h2>
 <p>Clang’s implementation of pointer authentication does include a
 number of features/behaviours to minimize the impedance mismatch with
@@ -692,18 +693,20 @@ they path through the casts, it would trivially lead to a signing oracle
 permits common cases like null pointer checks to not require
 authentication operations.</li>
 <li>Introducing an address discriminated value in a <em>C</em> struct
-results in a non-POD C struct, with the interesting results.</li>
+results in a non-POD C struct, with interesting results that shall be
+left as an exercise for the reader.</li>
 </ul>
 <h2 data-number="4.6" id="polymorphic-objects"><span class="header-section-number">4.6</span> Polymorphic objects<a href="#polymorphic-objects" class="self-link"></a></h2>
 <p>The approach clang has taken to protecting polymorphic objects is has
 been the greatest source of complexity to the C++ standard. The ABI has
 been intentionally designed to protect against some of the most common
 and powerful classes of attacks on C++ codebases.</p>
-<p>The intent of the schemas used are to protect against user after free
-errors, type confusion, subobject confusion, and attackers with
-arbitrary read and write primitives. This protection is achieved by
-adopting an authentication schema that uses address and type discrimated
-to protect each v-table pointer in an object, and then type and address
+<p>The intent of the schemas used to protect the v-table pointer and the
+v-table pointer slots is to protect against use-after-free errors, type
+confusions, subobject confusion, and attackers with arbitrary read and
+write primitives. This protection is achieved by adopting an
+authentication schema that uses address and type discrimated to protect
+each v-table pointer in an object, and then type and address
 discrimination for each slot in the type’s v-table. This schema is
 possible as copy/move constructors and copy/move assignment operators
 are never trivial for polymorphic classes.</p>
@@ -737,72 +740,6 @@ are never trivial for polymorphic classes.</p>
 discriminators used for v-tables are distinct from those derived in non
 v-table contexts, and are tied to the primary declarations of each
 v-table pointer or slot.</p>
-<!--
-By applying these schemas we ensure that an attacker cannot copy a
-v-table pointer from one object to another and have the object v-table
-pointer remain valid. The v-table pointer from an object with a primary
-base class of type T cannot be used as the v-table pointer from an object
-with a different primary base class U. If an attacker can replace the
-v-table pointer with a different but otherwise valid v-table, the
-protection on slots in the v-table itself means that slots defined in
-different subtypes are not compatible even if they may otherwise appear
-similarly types.
-
-In an attempt to enumerate how these are protected, given this hierarchy
-
-```cpp
-struct A {
-  virtual void f();
-};
-
-struct B {
-  virtual void f();
-};
-
-struct C : A{
-  virtual void f() override;
-  virtual void g();
-};
-
-struct D : A{
-  virtual void f() override;
-  virtual void g();
-};
-```
-
-We cannot copy valid v-table pointers:
-
-```cpp
-A a;
-A b;
-memcopy(&a, &b, sizeof(void*)); // Copy just the v-table
-a.f(); // Pointer authentication failure due to different storage address
-```
-
-We can't reuse the v-table pointer from an unrelated type as may occur
-with a use-after-free:
-
-```cpp
-char buffer[...];
-A *a = new (buffer) A;
-B *b = new (buffer) B; // Simulate a use-after-free and replace the v-table pointer
-a->f(); // Pointer authentication failure due to different primary base class
-```
-
-If you can induce a substitution with a different subtype of the same
-primary base class, that fails on access to a v-table slot defined by a class
-other that of the static type:
-
-```cpp
-char buffer[...];
-C *c = new (buffer) C;
-D *d = new (buffer) D; // Simulate a use-after-free and replace the v-table pointer
-c->f(); // Pointer authentication succeeds due to shared primary base
-c->g(); // Authentication fails as the resolved slot is for C::g, the found slot is
-        // D::g
-```
-
--->
 <h1 data-number="5" id="general-safety-hazards"><span class="header-section-number">5</span> General safety hazards<a href="#general-safety-hazards" class="self-link"></a></h1>
 <p>This paper is focused on pointer authentication as modeled by clang,
 and as such is highly specific to clang’s implementation. But there are
@@ -824,13 +761,13 @@ introduce in “obvious” code.</p>
 <span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="co">// that can be manipulated</span></span>
 <span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> the_value;</span>
 <span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
-<p>will result in a correctly signed value tha an attacker can
+<p>will result in a correctly signed value that an attacker can
 control.</p>
 <p>Avoiding such oracles requires significant care be taken to ensure
-that values being signed have a robust trust chain. Either ensuring that
-the the value has been signed consistently through every step of the
-processing, or by ensuring that the signed value comes from a trusted
-location (e.g read-only memory, program text, etc)</p>
+that values being signed have a robust trust chain. Either by ensuring
+that the the value has been signed consistently through every step of
+the processing, or by ensuring that the signed value comes from a
+trusted location (e.g read-only memory, program text, etc)</p>
 <h2 data-number="5.2" id="unintentional-spills"><span class="header-section-number">5.2</span> Unintentional spills<a href="#unintentional-spills" class="self-link"></a></h2>
 <p>The lack of complete control of the backend codegen means that is
 possible to write code in which you believe you have ensured an
@@ -879,6 +816,156 @@ of the type system.</p>
 <h1 data-number="7" id="acknowledgements"><span class="header-section-number">7</span> Acknowledgements<a href="#acknowledgements" class="self-link"></a></h1>
 <p>Thanks to Roger Orr and Ryan Mallon for feedback on the initial draft
 of this paper.</p>
+<h1 data-number="8" id="appendix"><span class="header-section-number">8</span> Appendix<a href="#appendix" class="self-link"></a></h1>
+<p>The schemas clang uses to protect polymorphic objects have caused
+significant consternation among many people, in and outside of the
+committee. This section provides details on the rationale for and effect
+of the ABI choices we made in clang’s application of pointer
+authentication to v-table dispatch.</p>
+<h2 data-number="8.1" id="rationale"><span class="header-section-number">8.1</span> Rationale<a href="#rationale" class="self-link"></a></h2>
+<p>It is well understood that attackers are able to use errors in
+software to manipulate program state in order to gain greater control of
+the target machine. There are a wide array of paths attackers can make
+use of when attacking software and many approaches are being
+investigated to limit the prevalence of those attacks, however the goal
+of mechanism like pointer authentication is not to stop such flaws, but
+to limit how powerful they are.</p>
+<p>We are especially concerned about anything that is v-table like as
+such constructions are provide extremely powerful primitives that an
+attacker can use to manipulate the control flow of a program.</p>
+<p>Recognizing that, we set out to make it as difficult as possible for
+an attacker to construct a state in a value may be used as a v-table on
+an object or in a state that is not valid.</p>
+<h2 data-number="8.2" id="design-approach"><span class="header-section-number">8.2</span> Design approach<a href="#design-approach" class="self-link"></a></h2>
+<p>In general when designing security features and mitigations we have
+to start with a set of assumptions of the amount of control an attacker
+already has when launching their attack on the value or data we are
+trying to protect. This can range from nothing at all, if we believe
+that what we are trying to protect is likely to be at the start of an
+attack chain, all the way through to arbitrary code execution in the
+kernel.</p>
+<div class="note">
+<span>[ <em>Note:</em> </span>
+<blockquote>
+<p>Somewhat frustratingly despite the widespread availability of
+documentation, tutorials, and classes, we have found that attackers
+persist in trying to do things that the relevant language standards
+clearly say are not permitted. As such we are forced to talk about what
+they are doing in terms of fundamental operations, any of which may
+require multiple actual steps by an attacker to construct and/or
+subsequently use. Each of these operations is called a primitive. As an
+example a “read primitive” allows an attacker to read some amount of
+memory they presumably are not intended to; an <em>arbitrary</em> read
+primitive means that an attacker can functionally construct a pointer to
+any address and read the content at that address.</p>
+</blockquote>
+<span> — <em>end note</em> ]</span>
+</div>
+<p>When designing the authentication schema we use for v-tables in C++
+we assumed that the attacker had already got some degree of control of
+program state, but had not yet achieved full code execution. Essentially
+giving them:</p>
+<ul>
+<li>arbitrary read and write primitives</li>
+<li>arbitrary type confusion</li>
+</ul>
+<p>How they got those primitives is not relevant to the mitigation, as
+often what happens is an attacker starts with a limited version of one
+primitive and can use that to construct a more powerful version of that
+primitive or to construct a limited version of another, and then slowly
+build up to arbitrary-X for any operation X that they need.</p>
+<p>An attacker with these assumed primitives is already extremely well
+positioned, and is at this point looking almost exclusively for the
+final jump to code execution, and v-table like constructs are a common
+target.</p>
+<p>To defend a v-table against an attacker with these tools it is
+necessary to ensure that they cannot reuse a v-table pointer from an old
+object, cannot use a v-table pointer from a type that does not match the
+static type of an object, cannot use a virtual method from an unrelated
+class, and cannot allow an attacker to construct or rewrite their own
+v-table out of the contents of others.</p>
+<p>The design we choose achieves this to the extent possible by limiting
+the substitutability of v-table pointer in any given object, to that of
+another [sub-]object that has the same primary-base class, that was
+previously stored at the same location, and then tying the
+authentication of any v-table slot to v-tablein which it is defined, as
+well as the declaration that caused that v-table slot to be exist.</p>
+<p>Combined these strongly constrain the ability of an attacker to
+substitute, modify, or intermingle either v-table pointers or the
+content of v-tables.</p>
+<h2 data-number="8.3" id="examples"><span class="header-section-number">8.3</span> Examples<a href="#examples" class="self-link"></a></h2>
+<p>We’ll use the following basic hierarchy to try to demonstrate the
+classes of errors that the schema we have designed defends against.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> A <span class="op">{</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">virtual</span> <span class="dt">void</span> f<span class="op">()</span>;</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> B <span class="op">{</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">virtual</span> <span class="dt">void</span> f<span class="op">()</span>;</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> C <span class="op">:</span> A<span class="op">{</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>  <span class="kw">virtual</span> <span class="dt">void</span> f<span class="op">()</span> <span class="kw">override</span>;</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">virtual</span> <span class="dt">void</span> g<span class="op">()</span>;</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> D <span class="op">:</span> A<span class="op">{</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  <span class="kw">virtual</span> <span class="dt">void</span> f<span class="op">()</span> <span class="kw">override</span>;</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>  <span class="kw">virtual</span> <span class="dt">void</span> g<span class="op">()</span>;</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span></code></pre></div>
+<p>Direct copying fails:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>A a;</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>A b;</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>memcopy<span class="op">(&amp;</span>a, <span class="op">&amp;</span>b, <span class="kw">sizeof</span><span class="op">(</span><span class="dt">void</span><span class="op">*))</span>; <span class="co">// Copy just the v-table</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>a<span class="op">.</span>f<span class="op">()</span>; <span class="co">// Pointer authentication failure due to different storage address</span></span></code></pre></div>
+<p>Similarly a type confusion, such as might occur following a
+use-after-free fails due to the type mismatch.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="dt">char</span> buffer<span class="op">[...]</span>;</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>A <span class="op">*</span>a <span class="op">=</span> <span class="kw">new</span> <span class="op">(</span>buffer<span class="op">)</span> A;</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>B <span class="op">*</span>b <span class="op">=</span> <span class="kw">new</span> <span class="op">(</span>buffer<span class="op">)</span> B; <span class="co">// Simulate a use-after-free and replace the v-table pointer</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>a<span class="op">-&gt;</span>f<span class="op">()</span>; <span class="co">// Pointer authentication failure due to different primary base class</span></span></code></pre></div>
+<p>If you can induce a substitution with a different subtype of the same
+primary base class, the new v-table pointer <em>can</em> be loaded, and
+the call to the base class defined virtual method succeeds, which is
+still as it is possible that the erroneously dispatched method may make
+the assumption that <em>this</em> has the correct dynamic type. The
+final call fails as the call site assumes a call to
+<code class="sourceCode cpp">C<span class="op">::</span>g</code> but the
+v-table slot it will load is for
+<code class="sourceCode cpp">D<span class="op">::</span>g</code>.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="dt">char</span> buffer<span class="op">[...]</span>;</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>C <span class="op">*</span>c <span class="op">=</span> <span class="kw">new</span> <span class="op">(</span>buffer<span class="op">)</span> C;</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>D <span class="op">*</span>d <span class="op">=</span> <span class="kw">new</span> <span class="op">(</span>buffer<span class="op">)</span> D; <span class="co">// Simulate a use-after-free and replace the v-table pointer</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>c<span class="op">-&gt;</span>f<span class="op">()</span>; <span class="co">// Pointer authentication succeeds due to shared primary base</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>c<span class="op">-&gt;</span>g<span class="op">()</span>; <span class="co">// Authentication fails as the resolved slot is for C::g, the found slot is</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>        <span class="co">// D::g</span></span></code></pre></div>
+<p>Virtual bases and additional v-tables are similarly protected, and so
+incorrect accesses fail or succeed in equivalent cases.</p>
+<p>As we can see this is not a perfect defense, but it has substantially
+increased the complexity of using or manipulating in an attack to the
+extent that we no longer see them being targeted at all.</p>
+<h2 data-number="8.4" id="other-languages"><span class="header-section-number">8.4</span> Other languages<a href="#other-languages" class="self-link"></a></h2>
+<p>C++ is not alone in having dynamic dispatch, and we have introduced
+analagous protections in languages like Objective-C, Objective-C++, and
+Swift. In cases where developers have manually implemented different
+forms of dynamic dispatch they have been able to use the
+<code class="sourceCode cpp">__ptrauth</code> qualifier such that clang
+has been able to largely automate similar degrees of protection.</p>
+<p>It is important that users and developers of other languages,
+including those that are considered “safe”, that these kinds of defenses
+need to be applied to any environment where they cannot guarantee all of
+the code running in a process is similar “safe”. Unsafe code is
+pernicious, and as a result can attack data the is defined and
+notionally only used in the safe language, and as such failing to apply
+similar levels of protection results in the state of the safe language
+being the target of an attacker that is exploiting an error in code
+written in a different language.</p>
+<h1 data-number="9" id="bibliography"><span class="header-section-number">9</span> References<a href="#bibliography" class="self-link"></a></h1>
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="1" role="doc-bibliography">
+<div id="ref-N1169" class="csl-entry" role="doc-biblioentry">
+[WG14 N1169] Wakker. C - Extensions to support embedded processors. <a href="https://open-std.org/jtc1/sc22/wg14/www/docs/n1169.pdf"><div class="csl-block">https://open-std.org/jtc1/sc22/wg14/www/docs/n1169.pdf</div></a>
+</div>
+</div>
 </div>
 </div>
 </body>
